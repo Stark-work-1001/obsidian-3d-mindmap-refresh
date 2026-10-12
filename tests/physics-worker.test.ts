@@ -3,13 +3,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import initWasm, { GraphPhysicsWasm } from '../src/physics/generated/graph-physics-glue.js';
+import { WASM_BASE64 } from '../src/physics/generated/wasm-asset';
 import { createWorkerCore, type WasmGlue, type WorkerHost } from '../src/physics/worker-core';
 import { PhysicsClient } from '../src/physics/physics-client';
 import { DEFAULT_SIM_PARAMS, DIAG } from '../src/physics/types';
 import type { FromWorker, GraphPayload, ToWorker } from '../src/physics/protocol';
 
+// The committed module (src/physics/generated), so tests need no Rust toolchain.
 const wasmBytes = () => {
-  const bytes = fs.readFileSync(path.join(process.env.OM3D_ROOT ?? '.', 'crates/graph-physics/pkg/graph_physics_bg.wasm'));
+  const bytes = Buffer.from(WASM_BASE64, 'base64');
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 };
 const glue: WasmGlue = {

@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { initSync, GraphPhysicsWasm } from '../crates/graph-physics/pkg/graph_physics.js';
+import { initSync, GraphPhysicsWasm } from '../src/physics/generated/graph-physics-glue.js';
 
-const wasm = initSync({ module: fs.readFileSync(new URL('../crates/graph-physics/pkg/graph_physics_bg.wasm', import.meta.url)) });
+// The committed WebAssembly module (base64 in wasm-asset.ts), so no Rust build is needed.
+const asset = fs.readFileSync(new URL('../src/physics/generated/wasm-asset.ts', import.meta.url), 'utf8');
+const wasm = initSync({ module: Buffer.from(/WASM_BASE64 = '([^']+)'/.exec(asset)[1], 'base64') });
 const params = { repulsion: 14000, attraction: .12, link_distance: 80, gravity: .002,
   damping: .78, max_velocity: 45, dt: .4, theta: .85, alpha_min: .002 };
 const positions = engine => new Float32Array(wasm.memory.buffer, engine.positions_ptr(), engine.positions_len());

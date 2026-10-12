@@ -40,7 +40,8 @@ if (/[^\x00-\x7F\u2013\u2014\u2018\u2019\u201C\u201D\u2026]/.test(JSON.stringify
 // --- Rust -> WASM -------------------------------------------------------------
 function rustDigest() {
   const hash = crypto.createHash('sha256');
-  for (const file of ['src/lib.rs', 'src/physics.rs', 'Cargo.toml']) hash.update(fs.readFileSync(path.join(crate, file)));
+  // Line endings are normalised so a CRLF checkout yields the same digest.
+  for (const file of ['src/lib.rs', 'src/physics.rs', 'Cargo.toml']) hash.update(fs.readFileSync(path.join(crate, file), 'utf8').replace(/\r\n/g, '\n'));
   hash.update(fs.readFileSync(path.join(root, 'Cargo.lock')));
   return hash.digest('hex').slice(0, 16);
 }

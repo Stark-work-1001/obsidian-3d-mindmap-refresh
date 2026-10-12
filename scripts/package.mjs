@@ -28,7 +28,7 @@ function fail(message) { console.error(`package: ${message}`); process.exit(1); 
 
 /** Allowlisted source paths (files or directories, relative to the repository). */
 const SOURCE_ALLOWLIST = [
-  '.editorconfig', '.gitignore', '.npmrc', '.github/workflows/release.yml',
+  '.editorconfig', '.gitattributes', '.gitignore', '.npmrc', '.github/workflows/release.yml',
   'CHANGELOG.md', 'LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md',
   'Cargo.toml', 'Cargo.lock', 'crates/graph-physics/Cargo.toml', 'crates/graph-physics/LICENSE', 'crates/graph-physics/src',
   'docs', 'licenses', 'reference', 'scripts', 'src', 'tests',
