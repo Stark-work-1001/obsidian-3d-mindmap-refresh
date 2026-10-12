@@ -1,10 +1,10 @@
 {
-	"id": "new-3d-graph",
-	"name": "New 3D Graph",
-	"version": "2.8.1",
-	"minAppVersion": "1.5.0",
-	"description": "Visualize your vault in 3D with a powerful, highly customizable, and filterable graph.",
-	"author": "Aryan Gupta",
-	"authorUrl": "https://aryan-gupta.is-a.dev",
-	"isDesktopOnly": true
+  "id": "obsidian-3d-mindmap",
+  "name": "3D Mind Map",
+  "version": "1.17.0",
+  "minAppVersion": "1.4.0",
+  "description": "将笔记大纲变为可编辑的 3D 思维导图，支持多种布局、公式备注、重点标记及自定义背景。",
+  "author": "3D Mind Map contributors",
+  "authorUrl": "https://github.com",
+  "isDesktopOnly": false
 }

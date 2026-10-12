@@ -43,6 +43,10 @@ impl GraphPhysicsWasm {
         self.engine.set_positions_flat(positions_flat);
     }
 
+    pub fn set_constraints(&mut self, radii: &[f32], levels: &[f32], fixed: &[f32]) {
+        self.engine.set_constraints(radii, levels, fixed);
+    }
+
     pub fn step(&mut self) -> bool {
         self.engine.step()
     }

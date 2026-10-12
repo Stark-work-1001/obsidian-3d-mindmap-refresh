@@ -1,34 +1,17 @@
 {
-	"name": "3D Graph Plugin",
-	"version": "2.8.1",
-	"description": "Visualize your vault in 3D with a powerful, highly customizable, and filterable graph.",
-	"main": "main.js",
-	"scripts": {
-		"build:wasm": "node scripts/bundle-wasm.mjs",
-		"dev": "node scripts/bundle-wasm.mjs && node esbuild.config.mjs",
-		"build": "node scripts/bundle-wasm.mjs && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"version": "node version-bump.mjs && git add manifest.json versions.json"
-	},
-	"keywords": [],
-	"author": "Aryan Gupta",
-	"license": "MIT",
-	"devDependencies": {
-		"@biomejs/biome": "2.5.7",
-		"@types/node": "^16.11.6",
-		"@types/three": "^0.184.1",
-		"@typescript-eslint/eslint-plugin": "5.29.0",
-		"@typescript-eslint/parser": "5.29.0",
-		"builtin-modules": "3.3.0",
-		"esbuild": "0.17.3",
-		"obsidian": "^1.13.1",
-		"prettier": "3.9.6",
-		"tslib": "2.4.0",
-		"typescript": "^6.0.3"
-	},
-	"dependencies": {
-		"3d-force-graph": "^1.80.0",
-		"three": "^0.184.0",
-		"three-forcegraph": "^1.43.4",
-		"three-spritetext": "^1.10.0"
-	}
+  "name": "obsidian-3d-mindmap-refresh",
+  "version": "1.17.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Interactive 3D outline mind maps for Obsidian with Rust/WASM physics.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "prettier": "3.6.2",
+    "wasm-pack": "^0.13.1"
+  }
 }

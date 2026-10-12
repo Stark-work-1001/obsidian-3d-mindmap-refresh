@@ -2,6 +2,7 @@
 name = "graph-physics"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 description = "High-performance SIMD 3D force-directed graph physics engine"
 
 [package.metadata.wasm-pack.profile.release]

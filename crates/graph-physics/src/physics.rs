@@ -147,6 +147,15 @@ impl OctreeSoA {
 
         while let Some((node_idx, item_idx, pos)) = self.insert_stack.pop() {
             let idx = node_idx as usize;
+            // Coincident positions must not subdivide forever. Retain their
+            // combined mass at the smallest representable cell.
+            if self.bounds_sizes[idx] <= 0.001 && self.masses[idx] > 0.0 {
+                let mass = self.masses[idx] + 1.0;
+                self.centers_of_mass[idx] =
+                    (self.centers_of_mass[idx] * self.masses[idx] + pos) / mass;
+                self.masses[idx] = mass;
+                continue;
+            }
             let m = self.masses[idx];
             let new_m = m + 1.0;
             self.centers_of_mass[idx] = (self.centers_of_mass[idx] * m + pos) / new_m;
@@ -413,6 +422,9 @@ pub struct PhysicsEngine {
     octree: OctreeSoA,
     pub spatial_hash: SpatialHashGrid3D,
     positions_len: usize,
+    pub fixed: Vec<Option<Vec3A>>,
+    pub radii: Vec<f32>,
+    pub levels: Vec<f32>,
 }
 
 impl PhysicsEngine {
@@ -453,6 +465,9 @@ impl PhysicsEngine {
             octree: OctreeSoA::default(),
             spatial_hash,
             positions_len,
+            fixed: vec![None; node_count],
+            radii: vec![6.0; node_count],
+            levels: vec![0.0; node_count],
         }
     }
 
@@ -469,6 +484,17 @@ impl PhysicsEngine {
                 self.positions[i] =
                     Vec3A::new(flat_in[i * 3], flat_in[i * 3 + 1], flat_in[i * 3 + 2]);
             }
+        }
+        self.kinetic_energy = 1.0;
+    }
+
+    pub fn set_constraints(&mut self, radii: &[f32], levels: &[f32], fixed: &[f32]) {
+        for i in 0..self.positions.len() {
+            self.radii[i] = radii.get(i).copied().unwrap_or(6.0).clamp(0.1, 300.0);
+            self.levels[i] = levels.get(i).copied().unwrap_or(0.0).max(0.0);
+            self.fixed[i] = if fixed.len() >= (i + 1) * 4 && fixed[i * 4 + 3] > 0.5 {
+                Some(Vec3A::new(fixed[i * 4], fixed[i * 4 + 1], fixed[i * 4 + 2]))
+            } else { None };
         }
         self.kinetic_energy = 1.0;
     }
@@ -545,6 +571,35 @@ impl PhysicsEngine {
             }
         }
 
+        // Mind-map constraints: preserve the user's hierarchy and ensure the
+        // radius control also changes collision spacing, not only appearance.
+        let max_radius = self.radii.iter().copied().fold(1.0_f32, f32::max);
+        self.spatial_hash.rebuild(&self.positions, (max_radius * 2.2).max(4.0));
+        for i in 0..n {
+            let p = self.positions[i];
+            let neighbors = self.spatial_hash.query_radius(
+                &self.positions, p, self.radii[i] + max_radius);
+            for j in neighbors.into_iter().take(96) {
+                let j = j as usize;
+                if j <= i { continue; }
+                let delta = p - self.positions[j];
+                let distance = delta.length();
+                let minimum = (self.radii[i] + self.radii[j]) * 1.15;
+                if distance < minimum {
+                    let direction = if distance > 0.001 { delta / distance }
+                        else { Vec3A::new(1.0, 0.3, -0.2).normalize() };
+                    let force = direction * (minimum - distance) * 0.5;
+                    self.forces[i] += force;
+                    self.forces[j] -= force;
+                }
+            }
+            let distance = p.length().max(0.01);
+            let shell = self.levels[i] * self.params.link_distance * 0.9;
+            if self.levels[i] > 0.0 {
+                self.forces[i] += p * ((shell - distance) / distance) * 0.015;
+            }
+        }
+
         {
             let dt = self.params.dt;
             let damping = self.params.damping;
@@ -553,6 +608,11 @@ impl PhysicsEngine {
             let mut total_v_sq = 0.0_f32;
 
             for i in 0..n {
+                if let Some(position) = self.fixed[i] {
+                    self.positions[i] = position;
+                    self.velocities[i] = Vec3A::ZERO;
+                    continue;
+                }
                 let v = (self.velocities[i] + self.forces[i] * dt) * damping;
                 let v_sq = v.length_squared();
                 total_v_sq += v_sq;
