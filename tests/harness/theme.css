@@ -1,0 +1,33 @@
+/* Approximation of Obsidian's default theme variables, for the harness only. */
+body.theme-light {
+  --background-primary: #ffffff; --background-primary-alt: #fafafa; --background-secondary: #f6f6f6;
+  --background-secondary-alt: #e3e3e3; --background-modifier-border: #e0e0e0; --background-modifier-hover: rgba(0,0,0,.067);
+  --background-modifier-active-hover: rgba(124,58,237,.15); --text-normal: #222222; --text-muted: #5c5c5c; --text-faint: #ababab;
+  --text-on-accent: #ffffff; --text-error: #e93147; --interactive-accent: #7c3aed; --interactive-accent-hover: #6d28d9;
+  --interactive-normal: #ffffff; --interactive-hover: #f2f2f2; --background-modifier-form-field: #ffffff;
+  color-scheme: light;
+}
+body.theme-dark {
+  --background-primary: #1e1e1e; --background-primary-alt: #242424; --background-secondary: #262626;
+  --background-secondary-alt: #363636; --background-modifier-border: #363636; --background-modifier-hover: rgba(255,255,255,.067);
+  --background-modifier-active-hover: rgba(124,58,237,.15); --text-normal: #dadada; --text-muted: #b3b3b3; --text-faint: #666666;
+  --text-on-accent: #ffffff; --text-error: #fb464c; --interactive-accent: #8a5cf5; --interactive-accent-hover: #a07ef7;
+  --interactive-normal: #363636; --interactive-hover: #3f3f3f; --background-modifier-form-field: #1e1e1e;
+  color-scheme: dark;
+}
+body {
+  margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Inter, sans-serif; font-size: 14px;
+  background: var(--background-primary); color: var(--text-normal);
+  --font-ui-small: 12px; --font-ui-smaller: 11px; --radius-s: 4px; --radius-m: 8px; --size-4-1: 4px; --size-4-2: 8px; --size-4-3: 12px;
+}
+#bar { height: 28px; display: flex; align-items: center; padding: 0 8px; font-size: 12px; color: var(--text-muted);
+  border-bottom: 1px solid var(--background-modifier-border); }
+#host { position: relative; width: var(--harness-w, 1280px); height: var(--harness-h, 760px); overflow: hidden; }
+.workspace-leaf, .workspace-leaf-content { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.view-header { display: none; }
+.view-content { position: relative; flex: 1; overflow: hidden; }
+button { font: inherit; color: var(--text-normal); background: var(--interactive-normal); border: 1px solid var(--background-modifier-border); border-radius: 4px; }
+input, select, textarea { font: inherit; color: var(--text-normal); background: var(--background-modifier-form-field); }
+.modal-container { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.4); z-index: 50; }
+.modal { background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 16px; min-width: 320px; }
+.svg-icon { display: inline-block; width: 16px; height: 16px; border-radius: 3px; background: currentColor; opacity: .55; }

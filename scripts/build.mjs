@@ -1,4 +1,16 @@
+// Build the installable plugin into dist/obsidian-3d-mindmap/.
+//
+//   node scripts/build.mjs              full build (Rust -> WASM, worker, plugin)
+//   node scripts/build.mjs --js-only    reuse the committed WASM assets
+//   node scripts/build.mjs --dev        unminified, inline source map
+//
+// Metadata is never rewritten here: manifest.json, package.json and
+// versions.json must already agree (use `npm version <x.y.z>`, which runs
+// scripts/sync-version.mjs). Tool discovery is portable: wasm-pack is taken
+// from $WASM_PACK, then PATH, then node_modules/wasm-pack; cargo from PATH or
+// ~/.cargo/bin.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -6,48 +18,139 @@ import * as esbuild from 'esbuild';
 
 const root = path.resolve(import.meta.dirname, '..');
 process.chdir(root);
-fs.mkdirSync('_tmp/logs', { recursive: true });
-const buildId = crypto.createHash('sha256').update(fs.readFileSync('src/refresh.js'))
-  .update(fs.readFileSync('src/recovered.js')).update(fs.readFileSync('src/rust-layout.js'))
-  .update(fs.readFileSync('src/physics-worker.js')).update(fs.readFileSync('crates/graph-physics/src/physics.rs'))
-  .update(fs.readFileSync('crates/graph-physics/src/lib.rs')).update(fs.readFileSync('styles.css'))
-  .update(fs.readFileSync('scripts/build.mjs'))
-  .update(fs.readFileSync('crates/graph-physics/Cargo.toml'))
-  .update(fs.readFileSync('Cargo.lock'))
-  .update(fs.readFileSync('src/learning-layouts.js'))
-  .digest('hex').slice(0, 12);
-if (!process.argv.includes('--js-only')) {
-  const cargoBin = path.join(process.env.USERPROFILE || '', '.cargo', 'bin');
-  const buildEnv = { ...process.env, PATH: `${cargoBin}${path.delimiter}${process.env.PATH}`, CARGO_BUILD_JOBS: '2' };
-  execFileSync(path.join(root, 'node_modules', 'wasm-pack', 'binary', 'wasm-pack.exe'),
-    ['build', 'crates/graph-physics', '--target', 'web', '--release', '--no-opt'], { stdio: 'inherit', env: buildEnv });
+const args = new Set(process.argv.slice(2));
+const jsOnly = args.has('--js-only');
+const dev = args.has('--dev');
+const outDir = path.join(root, 'dist', 'obsidian-3d-mindmap');
+const generated = path.join(root, 'src', 'physics', 'generated');
+const crate = path.join(root, 'crates', 'graph-physics');
+
+function fail(message) { console.error(`build: ${message}`); process.exit(1); }
+const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+
+// --- metadata ----------------------------------------------------------------
+const pkg = readJson('package.json');
+const manifest = readJson('manifest.json');
+const versions = readJson('versions.json');
+if (manifest.id !== 'obsidian-3d-mindmap') fail(`unexpected plugin id ${manifest.id}`);
+if (manifest.version !== pkg.version) fail(`manifest.json version ${manifest.version} != package.json ${pkg.version} (run npm version)`);
+if (versions[manifest.version] !== manifest.minAppVersion) fail(`versions.json lacks "${manifest.version}": "${manifest.minAppVersion}"`);
+if (/[^\x00-\x7F\u2013\u2014\u2018\u2019\u201C\u201D\u2026]/.test(JSON.stringify(manifest))) fail('manifest.json must contain English text only');
+
+// --- Rust -> WASM -------------------------------------------------------------
+function rustDigest() {
+  const hash = crypto.createHash('sha256');
+  for (const file of ['src/lib.rs', 'src/physics.rs', 'Cargo.toml']) hash.update(fs.readFileSync(path.join(crate, file)));
+  hash.update(fs.readFileSync(path.join(root, 'Cargo.lock')));
+  return hash.digest('hex').slice(0, 16);
 }
-const worker = await esbuild.build({ entryPoints: ['src/physics-worker.js'], bundle: true, write: false,
-  format: 'iife', target: 'es2020', minify: true, define: { 'import.meta.url': '"embedded:graph-physics"' } });
-fs.writeFileSync('src/generated-physics.js',
-  `// Generated from Rust sources by scripts/build.mjs.\nexport const workerCode = ${JSON.stringify(worker.outputFiles[0].text)};\n` +
-  `export const wasmBase64 = ${JSON.stringify(fs.readFileSync('crates/graph-physics/pkg/graph_physics_bg.wasm').toString('base64'))};\n`);
-let entry = fs.readFileSync('src/recovered.js', 'utf8');
-entry = `import { installRefresh } from './refresh.js';\n` + entry + `\n
-installRefresh({ Layout: io, Scene: qc, Renderer: es, Labels: Nc, View: lo, Toolbar: th, Plugin: rh,
-  layoutKinds: Oi, layoutNames: cr, layoutHints: Cu, layoutGroups: rm, radiusFor: Dc,
-  obsidian: Gt, openMenu: Ji, closeMenu: pn, button: ut, buildId: '${buildId}',
-  THREE: { Material: Ks, BasicMaterial: ic, InstancedMesh: qr, SphereGeometry: Xo, Color: He, DynamicDrawUsage: 35048 } });
-module.exports.refreshBuildId = '${buildId}';
-`;
-// InstancedMesh is recovered from the original Three.js bundle; fail if the
-// expected prototype is not present instead of silently using another class.
-const match = entry.match(/([\w$]+) = class extends tn \{\s*constructor\(e, t, n\)/);
-if (!match) throw new Error('Recovered InstancedMesh class not found');
-entry = entry.replace('InstancedMesh: qr', `InstancedMesh: ${match[1]}`);
-await esbuild.build({ stdin: { contents: entry, resolveDir: path.join(root, 'src'), sourcefile: 'entry.js' },
-  outfile: 'main.js', bundle: true, platform: 'browser', format: 'cjs', target: 'es2020',
-  external: ['obsidian'], minify: true, sourcemap: 'external', legalComments: 'eof',
-  banner: { js: `/* 3D Mind Map 1.17.0 | refresh ${buildId} | Rust/WASM worker | offline runtime */` } });
-const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
-manifest.version = '1.17.0';
-manifest.description = '将笔记大纲变为可编辑的 3D 思维导图，支持多种布局、公式备注、重点标记及自定义背景。';
-fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2) + '\n');
-fs.writeFileSync('versions.json', JSON.stringify({ '1.17.0': manifest.minAppVersion }, null, 2) + '\n');
-fs.writeFileSync('_tmp/logs/build.json', JSON.stringify({ version: manifest.version, buildId, builtAt: new Date().toISOString() }, null, 2));
-console.log(`Built 1.17.0 (${buildId})`);
+
+function findExecutable(name) {
+  const exts = process.platform === 'win32' ? ['.exe', '.cmd', ''] : [''];
+  for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
+    for (const ext of exts) { const candidate = path.join(dir, name + ext); if (fs.existsSync(candidate)) return candidate; }
+  }
+  return null;
+}
+
+function wasmPack() {
+  if (process.env.WASM_PACK) return process.env.WASM_PACK;
+  const onPath = findExecutable('wasm-pack');
+  if (onPath && !onPath.endsWith('.cmd')) return onPath;
+  const local = path.join(root, 'node_modules', 'wasm-pack', 'binary', process.platform === 'win32' ? 'wasm-pack.exe' : 'wasm-pack');
+  if (fs.existsSync(local)) return local;
+  fail('wasm-pack not found: install it (cargo install wasm-pack), run npm ci, or set WASM_PACK');
+}
+
+const digest = rustDigest();
+if (!jsOnly) {
+  const cargoBin = path.join(os.homedir(), '.cargo', 'bin');
+  const env = { ...process.env, PATH: `${process.env.PATH}${path.delimiter}${cargoBin}` };
+  execFileSync(wasmPack(), ['build', crate, '--target', 'web', '--release', '--no-opt', '--out-dir', 'pkg'], { stdio: 'inherit', env });
+  const pkgDir = path.join(crate, 'pkg');
+  fs.mkdirSync(generated, { recursive: true });
+  const header = `// GENERATED by scripts/build.mjs from crates/graph-physics (wasm-bindgen glue). Do not edit.\n`;
+  fs.writeFileSync(path.join(generated, 'graph-physics-glue.js'), header + fs.readFileSync(path.join(pkgDir, 'graph_physics.js'), 'utf8'));
+  fs.copyFileSync(path.join(pkgDir, 'graph_physics.d.ts'), path.join(generated, 'graph-physics-glue.d.ts'));
+  const wasm = fs.readFileSync(path.join(pkgDir, 'graph_physics_bg.wasm'));
+  fs.writeFileSync(path.join(generated, 'wasm-asset.ts'),
+    `// GENERATED by scripts/build.mjs from crates/graph-physics. Do not edit.\n` +
+    `export const WASM_SOURCE_DIGEST = '${digest}';\n` +
+    `export const WASM_SHA256 = '${crypto.createHash('sha256').update(wasm).digest('hex')}';\n` +
+    `export const WASM_BASE64 = '${wasm.toString('base64')}';\n`);
+} else {
+  const asset = path.join(generated, 'wasm-asset.ts');
+  if (!fs.existsSync(asset)) fail('no generated WASM assets; run a full build once (requires Rust)');
+  const stored = /WASM_SOURCE_DIGEST = '([0-9a-f]+)'/.exec(fs.readFileSync(asset, 'utf8'))?.[1];
+  if (stored !== digest) console.warn(`build: WARNING the committed WASM was built from different Rust sources (${stored} != ${digest}); run a full build.`);
+}
+
+// --- worker bundle ---------------------------------------------------------------
+const worker = await esbuild.build({
+  entryPoints: ['src/physics/worker.ts'], bundle: true, write: false, format: 'iife', target: 'es2020',
+  minify: !dev, legalComments: 'none', define: { 'import.meta.url': '"embedded:graph-physics"' }, logLevel: 'warning',
+});
+const workerSource = worker.outputFiles[0].text;
+
+// --- KaTeX stylesheet with its fonts inlined -------------------------------------
+// Obsidian's community installer only downloads main.js, manifest.json and
+// styles.css, so formula fonts travel inside main.js (woff2 as data URLs) and
+// work offline however the plugin was installed.
+const katexDir = path.join(root, 'node_modules', 'katex', 'dist');
+let katexCss = fs.readFileSync(path.join(katexDir, 'katex.min.css'), 'utf8');
+let inlinedFonts = 0;
+katexCss = katexCss.replace(/src:url\(fonts\/([\w-]+)\.woff2\) format\("woff2"\)(?:,url\(fonts\/[\w-]+\.(?:woff|ttf)\) format\("(?:woff|truetype)"\))*/g, (_m, name) => {
+  inlinedFonts++;
+  const data = fs.readFileSync(path.join(katexDir, 'fonts', `${name}.woff2`)).toString('base64');
+  return `src:url(data:font/woff2;base64,${data}) format("woff2")`;
+});
+if (/url\(fonts\//.test(katexCss) || inlinedFonts < 10) fail(`unexpected KaTeX stylesheet layout (${inlinedFonts} fonts inlined)`);
+
+const virtualModules = {
+  name: 'virtual-modules',
+  setup(build) {
+    build.onResolve({ filter: /^virtual:(physics-worker|katex-css)$/ }, args => ({ path: args.path.slice('virtual:'.length), namespace: 'virtual' }));
+    build.onLoad({ filter: /.*/, namespace: 'virtual' }, args => ({
+      contents: `export default ${JSON.stringify(args.path === 'katex-css' ? katexCss : workerSource)};`, loader: 'js',
+    }));
+  },
+};
+
+// --- plugin bundle ----------------------------------------------------------------
+fs.rmSync(outDir, { recursive: true, force: true });
+fs.mkdirSync(outDir, { recursive: true });
+const banner = `/* ${manifest.name} ${manifest.version} — ${manifest.description}\n * Source: ${pkg.repository ?? 'see README'} · MIT. Third-party notices: THIRD_PARTY_NOTICES.md. */`;
+const result = await esbuild.build({
+  entryPoints: ['src/main.ts'], outfile: path.join(outDir, 'main.js'), bundle: true, platform: 'browser', format: 'cjs',
+  target: 'es2020', external: ['obsidian', 'electron', '@codemirror/*'], minify: !dev, sourcemap: dev ? 'inline' : false,
+  legalComments: 'eof', banner: { js: banner }, plugins: [virtualModules], metafile: true, logLevel: 'warning',
+  define: { 'process.env.NODE_ENV': dev ? '"development"' : '"production"', __PLUGIN_VERSION__: JSON.stringify(manifest.version) },
+});
+fs.mkdirSync(path.join(root, '_tmp'), { recursive: true });
+fs.writeFileSync(path.join(root, '_tmp', 'meta.json'), JSON.stringify(result.metafile));
+
+// --- licence texts -----------------------------------------------------------------
+// The release is main.js + manifest.json + styles.css, so the full licence
+// texts of everything bundled travel inside main.js.
+const katexPkg = readJson(path.join(root, 'node_modules', 'katex', 'package.json'));
+const threePkg = readJson(path.join(root, 'node_modules', 'three', 'package.json'));
+const notices = [
+  [`${manifest.name} ${manifest.version}`, 'LICENSE'],
+  ['Rust physics engine, derived from Obsidian 3D Graph 2.8.1', 'licenses/obsidian_3d_graph_MIT.txt'],
+  [`three.js ${threePkg.version}`, 'node_modules/three/LICENSE'],
+  [`KaTeX ${katexPkg.version} (code, stylesheet and fonts)`, 'node_modules/katex/LICENSE'],
+  ['Rust crates (WebAssembly physics module)', 'licenses/rust-crates.txt'],
+];
+const licenceText = notices.map(([title, file]) => {
+  const full = path.join(root, file);
+  if (!fs.existsSync(full)) fail(`licence file missing: ${file}`);
+  return `--- ${title} ---\n${fs.readFileSync(full, 'utf8').trim().replace(/\*\//g, '* /')}`;
+}).join('\n\n');
+fs.appendFileSync(path.join(outDir, 'main.js'), `\n/*! Licences of ${manifest.name} and the third-party software bundled in this file:\n\n${licenceText}\n*/\n`);
+
+// --- static files -----------------------------------------------------------------
+fs.copyFileSync('manifest.json', path.join(outDir, 'manifest.json'));
+fs.copyFileSync('styles.css', path.join(outDir, 'styles.css'));
+
+const size = file => `${(fs.statSync(file).size / 1024).toFixed(0)} KiB`;
+console.log(`built ${manifest.name} ${manifest.version} -> ${path.relative(root, outDir)}  main.js ${size(path.join(outDir, 'main.js'))}, worker ${(workerSource.length / 1024).toFixed(0)} KiB, KaTeX fonts ${inlinedFonts}, wasm digest ${digest}${dev ? ' (dev)' : ''}`);

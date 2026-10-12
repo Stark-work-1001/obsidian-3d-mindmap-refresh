@@ -1,0 +1,22 @@
+{
+  "comment": "Non-English text that is data, not interface text. Each entry must say why it has to stay.",
+  "entries": [
+    { "file": "src/model/markdown-parser.ts", "contains": "CORE_NAME_SEPARATOR = '\\uFF5C'", "reason": "Full-width vertical bar that separates a display name in existing file names (1.x convention)." },
+    { "file": "src/model/markdown-parser.ts", "contains": "const CORE_NAME_KEYS", "reason": "Frontmatter keys used by existing notes to name the root node (1.x compatibility)." },
+    { "file": "src/model/markdown-parser.ts", "contains": "(?:v|\\u7248\\u672C)", "reason": "Version markers in existing file names that the optional title shortening removes." },
+    { "file": "src/model/markdown-parser.ts", "contains": "\\u7B54\\u6848\\u7248", "reason": "Edition/draft markers in existing file names that the optional title shortening removes." },
+    { "file": "src/model/markdown-parser.ts", "contains": "[A-Za-z_\\u4e00-\\u9fa5]", "reason": "Frontmatter keys may be written in Chinese in existing notes." },
+    { "file": "scripts/ui-smoke.mjs", "contains": "const NON_ENGLISH", "reason": "The UI test's own detector for non-English text (character ranges)." },
+    { "file": "scripts/check-english.mjs", "contains": "const CJK", "reason": "This check's own character ranges." },
+    { "file": "scripts/obsidian-check.mjs", "contains": "const NON_ENGLISH", "reason": "The in-app check's own detector for non-English text (character ranges)." }
+  ],
+  "bundle": [
+    { "contains": "\u5BFC\u56FE\u6838\u5FC3", "reason": "Frontmatter key (data)." },
+    { "contains": "\u7248\u672C", "reason": "File-name version marker (data)." },
+    { "contains": "\u7B54\u6848\u7248", "reason": "File-name edition markers (data)." },
+    { "contains": "\u4e00-\u9fa5", "reason": "Character range in the frontmatter key pattern (data)." },
+    { "contains": "\uFF5C", "reason": "Display-name separator in file names (data)." },
+    { "contains": "\u8349\u7A3F", "reason": "File-name draft marker (data), same pattern as above." },
+    { "contains": "\uF900-\uFFFF", "reason": "Character ranges in the KaTeX lexer (third-party code, not text)." }
+  ]
+}

@@ -1,6 +1,26 @@
 # Third-party notices
 
-- Rust physics derives from Obsidian 3D Graph 2.8.1, copyright 2025 Aryan Gupta, MIT. Full license: `licenses/obsidian_3d_graph_MIT.txt`. Modified for outline levels, fixed nodes, collision radii and coincident-position safety.
-- The user-provided 1.15.0 distribution embeds Three.js r160, KaTeX 0.16.47 (versions read from the recovered source), and d3-force-3d (exact bundled version unavailable without the original lockfile). Existing code, license comments, CSS and fonts are retained. Full Three.js and KaTeX MIT licenses are in `licenses/`; the d3-force-3d MIT text, copyright 2017 Vasco Asturiano, was retrieved from the 3.0.6 package to retain its permission notice. d3's underlying components retain their upstream licenses; exact original dependency versions should be checked if the lost lockfile is recovered.
-- Rust dependencies and exact versions are recorded in Cargo.lock. Build dependencies are recorded in package-lock.json. They are not installed into Obsidian at runtime.
-- Backup configuration files, API credentials and private vault notes are excluded from both public source packaging and release packaging.
+## Included in the release (`main.js`)
+
+The full licence texts below are also appended to `main.js`.
+
+| Component | Version | Licence | Text |
+| --- | --- | --- | --- |
+| Physics engine, derived from Obsidian 3D Graph by Aryan Gupta | 2.8.1 (modified) | MIT | `licenses/obsidian_3d_graph_MIT.txt` |
+| three.js | 0.160.1 | MIT | `licenses/three_MIT.txt` |
+| KaTeX (code, stylesheet and fonts) | 0.16.47 | MIT | `licenses/katex_MIT.txt` |
+| Rust crates compiled into the WebAssembly module (glam, serde, wasm-bindgen, js-sys and their dependencies) | see `Cargo.lock` | MIT or Apache-2.0 (MIT chosen) | `licenses/rust-crates.txt` |
+
+The physics engine keeps the Barnes–Hut octree and integrator structure of
+Obsidian 3D Graph 2.8.1 and adds fixed nodes, collision radii, per-edge rest
+lengths, depth shells, bounded collision handling, annealing and diagnostics.
+
+## Repository only
+
+`reference/` holds the 1.15.0 and 1.17.0 builds of this plugin, used by tests
+to compare behaviour. They embed three.js, KaTeX and d3-force-3d with its d3
+dependencies; those licences are in `licenses/` (`d3_*`, `three_MIT.txt`,
+`katex_MIT.txt`). d3-force-3d is not part of 2.0.
+
+Build tools (TypeScript, esbuild, wasm-pack, playwright-core) and their
+dependencies are listed in `package-lock.json` and are not distributed.

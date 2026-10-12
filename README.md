@@ -1,170 +1,151 @@
-# 3D Mind Map · obsidian-3d-mindmap
+# 3D Mind Map for Obsidian
 
-[English](#english) · [中文](#中文)
+Turn a note's headings and lists into an editable 3D mind map. Navigate from
+the whole subject to a chapter, a branch and a single concept; read and edit
+notes beside the map; see exactly which relationships come from your note and
+which you added in the map. Everything runs locally and offline.
 
-把 Markdown 大纲变成可编辑的三维思维导图。力导向计算由 Rust + WASM 在 Web Worker 中运行，**共 23 种布局**，运行时零网络请求。
+Plugin ID: `obsidian-3d-mindmap` · Version 2.0.0 · Obsidian 1.4.0 or later · Desktop and mobile
 
----
+## What it does
 
-<a id="中文"></a>
-
-# 中文
-
-## 特性
-
-- **23 种布局**，含三种面向学习的组织方式：
-  - **知识星座**：按章节形成独立星团，适合先看全貌，再聚焦概念
-  - **章节书架**：章节分区，节点按 Markdown 阅读顺序排列，适合精读
-  - **学习路径**：章节沿空间路线展开，适合顺序学习与复习
-- **力导向计算**：Rust + WASM SIMD + Barnes–Hut 八叉树，运行在 Web Worker 中；
-  一次只提交一个任务，使用可转移缓冲区回收内存
-- **高效渲染**：普通节点批量绘制（3 次绘制调用覆盖 3000 节点），
-  千节点以上按需创建标签并限制显示预算
-- **重点标记**：球体自发光，亮度 0–4 连续可调，无光晕精灵、无选择外壳、无全屏 bloom
-- **阅读辅助**：章节、主题和当前概念祖先标签优先；选中概念高亮真实父子路径；
-  一键聚焦分支、返回全图、推荐阅读视角
-- **备注**：支持 Markdown 与公式预览（`$E=mc^2$`、`$$…$$`）及 `[[笔记#标题|别名]]` 内链
-- **背景**：保留主题与预设，新增就地编辑器，单色或双色竖向渐变，可预览后保存
-- **可调节**：球径、节点间距、连线粗细、重点亮度均可连续调整
-
-## 安装
-
-将发行包中的 `main.js`、`manifest.json`、`styles.css`、`vendor/` 复制到：
-
-```text
-<你的 vault>/.obsidian/plugins/obsidian-3d-mindmap/
-```
-
-然后重载该插件。包中不含 `data.json`，升级会保留原有设置。
-
-**运行本插件不需要 Rust、Node.js 或 npm** —— WASM 与 Worker 已内嵌进 `main.js`。
-
-## 使用
-
-1. 打开 Markdown 笔记，在命令面板执行「以 3D 思维导图打开当前笔记」
-2. 「层级 → 展开与折叠」控制可见层级；「视角」选择自如旋转、绕选中点旋转或默认旋转
-3. 选中节点，「编辑 → 节点操作 → 填写备注」；点「预览渲染」检查，
-   点「保存备注」或 Ctrl+Enter 写回，Escape 撤销未保存内容
-4. 「节点」组调整全局／选中球径、间距与重点亮度；「重点」钉住节点
-5. 「背景 → 自定义单色／双色渐变」选择颜色，取消则不改动设置
-
-「布局 → 知识学习」或「学习 → 阅读辅助」选择三种学习布局：
-看全貌选**知识星座**，精读选**章节书架**，顺序复习选**学习路径**。
-
-## 开发
-
-需要 Node.js 20+、Rust stable、WASM target，Windows 上还需 MSVC 工具链。
-
-```bash
-npm ci
-npm run build
-npm test
-```
-
-`node scripts/build.mjs --js-only` 仅在 Rust 源码未改动时可用于界面开发。
-详见 [`docs/environment.md`](./docs/environment.md)、[`docs/architecture.md`](./docs/architecture.md)。
-
-## 卸载与回滚
-
-回滚只需恢复本插件的 `main.js`、`styles.css`、`manifest.json` 与 `vendor/`，
-并重载本插件。本插件不修改 Obsidian 的任何安全设置，也不覆盖其它插件。
-
-## 源码来源与许可
-
-原始 TypeScript 工程不可得，`src/recovered.js` 是从已安装构建产物恢复的可读源码，
-保留原有构建符号与第三方依赖，未冒充丢失的 TS 原工程。
-新功能集中在 `src/refresh.js`、`src/learning-layouts.js`、`src/rust-layout.js`、
-`src/physics-worker.js`；Rust 内核在 `crates/graph-physics/`。
-
-MIT 许可。引用代码保留各自的 MIT/ISC 声明，见 `LICENSE`、`licenses/` 与
-[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
-
-> 原插件中的「键角／能级／轨道／晶格」等是布局的视觉原型，
-> 不是分子、量子或晶体科学求解器。
-
----
-
-<a id="english"></a>
-
-# English
-
-## Features
-
-- **23 layouts**, including three study-oriented organizations:
-  - **Knowledge constellation** — chapters as separated clusters; see the whole picture, then focus on a concept
-  - **Chapter bookshelf** — chapter sections with nodes in Markdown reading order; for close reading
-  - **Learning journey** — chapters laid out along a spatial route; for sequential study and review
-- **Force simulation** — Rust + WASM SIMD + Barnes–Hut octree in a Web Worker;
-  one outstanding task at a time, memory recycled through transferable buffers
-- **Efficient rendering** — ordinary nodes batched into a single draw call
-  (3 draw calls cover 3000 nodes); labels allocated on demand above a thousand nodes
-- **Emphasis** — sphere emissive, brightness 0–4 continuously adjustable;
-  no halo sprites, no selection shell, no full-screen bloom
-- **Reading aids** — chapter, topic and ancestor labels take priority;
-  selecting a concept highlights its real parent–child path;
-  focus-branch, return-to-overview and recommended reading camera
-- **Notes** — Markdown with formula preview (`$E=mc^2$`, `$$…$$`)
-  and `[[note#heading|alias]]` internal links
-- **Background** — themes and presets plus an in-place editor for solid or
-  two-tone vertical gradients, previewed before saving
-- **Continuous controls** — node radius, spacing, edge thickness and emphasis brightness
+- **Your note is the map.** Headings and list items become nodes; editing in
+  the map edits the Markdown, and edits in the editor appear in the map.
+  Changes made elsewhere are never overwritten (see [Editing safely](#editing-safely)).
+- **Study-oriented navigation.** Overview → enter a chapter → enter a branch →
+  focus a concept → read its note and relationships → go back. Breadcrumbs,
+  Back/Forward (Alt+←/→ or the mouse buttons) and Escape always tell you where
+  you are and how to get out.
+- **A coherent camera.** Rotate around the point you panned to, around the
+  selected node (and follow it while the layout moves), or around the map
+  centre. Zoom moves towards the pointer and never passes through a sphere;
+  Alt+scroll magnifies without moving. Smoothing is the same at any frame rate.
+- **23 layouts**, grouped by purpose: *Study* (Knowledge map, Bookshelf,
+  Learning journey), *Structure* (Tree, Radial, Cone tree), *Explore*
+  (Force-directed) and 16 *Experimental shapes* in their own submenu. Layouts
+  keep their arrangement when you edit, so the map does not jump around.
+- **Honest relationships.** Hierarchy edges, chapter order, associations you
+  create in the map and `[[links]]` written in the note are drawn differently,
+  and the inspector says where each relationship comes from. Nodes that merely
+  sit close together are never presented as related.
+- **Emphasis without clutter.** Selection, hover, search hits, key concepts and
+  pinned nodes are distinguished by colour, labels and badges only — no glow
+  sprites, halos or bloom — and stay readable on light, dark, solid and
+  gradient backgrounds.
+- **Formulas and notes.** `$…$` and `$$…$$` render with KaTeX (bundled; no
+  network). Node notes render as Markdown in the inspector and on hover.
+- **Fast with large outlines.** 3,000 nodes render in a constant handful of
+  draw calls; the force layout runs in a Rust/WebAssembly worker with a
+  JavaScript fallback; an idle map uses no CPU or GPU time. Measured results are
+  in [docs/validation.md](docs/validation.md).
 
 ## Install
 
-Copy `main.js`, `manifest.json`, `styles.css` and `vendor/` from the release archive into:
+**From a release archive (manual install).** Download
+`obsidian-3d-mindmap-2.0.0.zip`, extract it, and copy the
+`obsidian-3d-mindmap` folder into `<your vault>/.obsidian/plugins/`. Then enable
+*3D Mind Map* under *Settings → Community plugins*. The plugin needs only
+`main.js`, `manifest.json` and `styles.css`; everything else (physics engine,
+formula fonts) is inside `main.js`.
 
-```text
-<your vault>/.obsidian/plugins/obsidian-3d-mindmap/
-```
+**From a built checkout.** `npm run install:vault -- --vault <path>` shows what
+it would do; add `--yes` to install (details in [docs/development.md](docs/development.md)).
 
-Then reload the plugin. The archive contains no `data.json`, so upgrades keep your settings.
+Upgrading from 1.x keeps your settings, associations, key concepts and node
+sizes (camera positions from 1.x are kept in the data file, but 2.0 lays the map
+out differently and frames it afresh the first time). On first start 2.0 converts its data file and keeps a
+copy of the old one as `data.backup-v1.json` in the plugin folder. Your notes
+are not modified by the upgrade. See [docs/migration.md](docs/migration.md).
 
-**Running this plugin requires no Rust, Node.js or npm** — the WASM module and worker
-are embedded in `main.js`.
+You never need Node.js, Rust or npm to use the plugin.
 
-## Usage
+## Quick start
 
-1. Open a Markdown note and run “Open current note as 3D mind map” from the command palette
-2. “Hierarchy → Expand and collapse” controls visible depth; “Viewpoint” picks free rotation,
-   rotate-around-selection, or default rotation
-3. Select a node and use “Edit → Node actions → Fill note”. Click “Preview render” to check,
-   “Save note” or Ctrl+Enter to write back; Escape discards unsaved edits
-4. The “Node” group adjusts global/selected radius, spacing and emphasis brightness;
-   “Emphasis” pins a node
-5. “Background → Custom solid / two-tone gradient” picks colors; cancelling changes nothing
+1. Open a Markdown note with headings or lists.
+2. Run **Open current note as 3D mind map** (ribbon icon, command palette, or
+   Ctrl/Cmd+Shift+M for a new tab).
+3. Drag to rotate, scroll to zoom, right-drag (or Shift+drag) to pan.
+4. Click a node to see its note and relationships in the inspector.
+   Double-click a node to enter its branch; Escape goes back up.
+5. Press **Tab** to add a child, **Enter** to add a sibling, **F2** to rename,
+   **Shift+Enter** to write a note. **Ctrl/Cmd+Z** undoes.
 
-“Layout → Knowledge learning” or “Learning → Reading aids” selects the three study layouts:
-**Knowledge constellation** for overview, **Chapter bookshelf** for close reading,
-**Learning journey** for sequential review.
+## Controls
 
-## Development
+| Action | Mouse / touch | Keyboard |
+| --- | --- | --- |
+| Select | Click a sphere or its label | Arrow keys (↑/↓ order, ← parent, → child), type a letter to jump |
+| Rotate | Drag · one finger | Shift+arrows |
+| Pan | Right-drag · Shift+drag · two fingers | — |
+| Zoom (move closer) | Scroll · pinch | Page Up / Page Down |
+| Magnify (field of view) | Alt+scroll | — |
+| Enter branch | Double-click a node | Ctrl/Cmd+Enter |
+| Up one level / clear | Double-click empty space | Escape |
+| Overview | — | Home |
+| Back / forward | Mouse back/forward buttons | Alt+← / Alt+→ |
+| Search | Toolbar | Ctrl/Cmd+F, then Enter / Shift+Enter |
+| Open the note at a node | Ctrl/Cmd+click | — |
 
-Requires Node.js 20+, Rust stable and a WASM target; MSVC tooling on Windows.
+The full list, including editing keys, is in [docs/keyboard.md](docs/keyboard.md).
 
-```bash
-npm ci
-npm run build
-npm test
-```
+**Interaction modes** (toolbar, left): *Navigate* (default), *Arrange* (drag a
+node to place it; it keeps that position in this layout until you release it)
+and *Connect* (click two nodes to create an association; click the same pair
+again to remove it). Escape returns to Navigate.
 
-`node scripts/build.mjs --js-only` is available for UI work when Rust sources are unchanged.
-See [`docs/environment.md`](./docs/environment.md) and [`docs/architecture.md`](./docs/architecture.md).
+**Toolbar menus** are organised by task: *Edit*, *Study* (overview, branches,
+levels, key concepts, reading path), *Layout*, *View* (rotation centre, camera
+controls, labels), *Appearance* (background, node size and colours, edges,
+motion), *Relationships*, and *More* (export PNG, open note, diagnostics,
+reload, settings). Every menu works with the keyboard (↓ to open, arrows,
+Enter, Escape).
 
-## Uninstall and rollback
+## Editing safely
 
-Rollback restores only this plugin's `main.js`, `styles.css`, `manifest.json` and `vendor/`,
-then reloads it. The plugin changes no Obsidian security setting and overwrites no other plugin.
+- Every change is computed against the exact note text the map last saw. If
+  the note changed in the meantime (another editor, sync, a script), nothing
+  is overwritten: the map adopts the newer text and re-applies your change by
+  node identity, or tells you it could not.
+- Undo/redo (Ctrl/Cmd+Z, Ctrl/Cmd+Y) covers edits made in the map.
+- Rotating, zooming, selecting, searching, collapsing branches and arranging
+  nodes never write to your note. They are stored in the plugin's own data:
+  camera position per note, collapsed branches, associations, key concepts,
+  node sizes and pinned positions. These are keyed by node path and follow
+  renames and moves made in the map.
+- Deleting a branch with many nodes asks first, and can be undone.
 
-## Provenance and license
+## Privacy and offline use
 
-The original TypeScript project is unavailable. `src/recovered.js` is readable source
-recovered from the installed build, retaining its original build symbols and third-party
-dependencies; it does not impersonate the lost TypeScript project.
-New functionality lives in `src/refresh.js`, `src/learning-layouts.js`, `src/rust-layout.js`
-and `src/physics-worker.js`; the Rust core is in `crates/graph-physics/`.
+The plugin makes no network requests and loads no remote code. Formula fonts,
+the physics engine and its worker are bundled. The diagnostics report
+(*More → Diagnostics*) contains counts and timings only — no note text or file
+names — and is copied to the clipboard only when you ask.
 
-MIT licensed. Referenced code keeps its own MIT/ISC notices — see `LICENSE`, `licenses/`
-and [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md).
+## Known limitations
 
-> The original plugin's “bond angle / energy level / orbit / lattice” layouts are
-> visual motifs, not molecular, quantum or crystallographic solvers.
+- Very large outlines (well beyond 3,000 nodes) still render, but labels are
+  reduced to the most relevant ones; collapse branches or use search.
+- The Experimental shapes arrange nodes by form, not meaning (they were visual
+  motifs in 1.x and are kept for those who like them).
+- Links to headings in *other* notes open those notes; only links within the
+  same note are drawn in the map.
+- The plugin is not marked desktop-only, as in 1.x, but 2.0 has not been tested on mobile devices.
+- 2.0 was validated in Obsidian 1.14.4 on Windows (including an upgrade from
+  1.17 data) and in a browser test harness; see
+  [docs/validation.md](docs/validation.md).
+
+## Documentation
+
+- [docs/keyboard.md](docs/keyboard.md) — all shortcuts and gestures
+- [docs/migration.md](docs/migration.md) — upgrading from 1.x, data format, rollback
+- [docs/architecture.md](docs/architecture.md) — how the plugin is built
+- [docs/development.md](docs/development.md) — building, testing, packaging
+- [docs/validation.md](docs/validation.md) — test coverage and measured performance
+- [CHANGELOG.md](CHANGELOG.md) — release notes
+
+## License
+
+MIT — see [LICENSE](LICENSE). The physics engine is derived from Obsidian 3D
+Graph 2.8.1 (MIT). Bundled three.js and KaTeX are MIT licensed; Rust crates
+are MIT/Apache-2.0. Full texts are in [licenses/](licenses/) and inside
+`main.js`; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
