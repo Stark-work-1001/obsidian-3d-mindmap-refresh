@@ -1,16 +1,21 @@
-.vscode 
-
-*.iml
-.idea
-
-node_modules
-
-main.js
-
-*.map
-
-data.json
-
-.DS_Store
-
+# Build output and local working files
+node_modules/
+dist/
+_tmp/
 target/
+crates/graph-physics/pkg/
+*.map
+*.zip
+*.tar.gz
+*.sha256
+release/
+
+# Never commit plugin settings, vault data or editor state
+data.json
+.obsidian/
+.vscode/
+.idea/
+*.iml
+.claude/
+.DS_Store
+Thumbs.db

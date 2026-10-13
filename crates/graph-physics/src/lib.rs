@@ -1,5 +1,7 @@
+//! WebAssembly bindings for the mind-map layout engine.
 mod physics;
 
+use glam::Vec3A;
 use physics::{PhysicsEngine, SimulationParams};
 use serde_wasm_bindgen::{from_value, to_value};
 use wasm_bindgen::prelude::*;
@@ -9,29 +11,26 @@ pub struct GraphPhysicsWasm {
     engine: PhysicsEngine,
 }
 
+fn params_from(value: JsValue) -> Result<SimulationParams, JsValue> {
+    if value.is_undefined() || value.is_null() {
+        return Ok(SimulationParams::default());
+    }
+    from_value(value).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
 #[wasm_bindgen]
 impl GraphPhysicsWasm {
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        node_count: usize,
-        edges_flat: &[u32],
-        params_val: JsValue,
-    ) -> Result<GraphPhysicsWasm, JsValue> {
-        let params: SimulationParams = if params_val.is_undefined() || params_val.is_null() {
-            SimulationParams::default()
-        } else {
-            from_value(params_val).map_err(|e| JsValue::from_str(&e.to_string()))?
-        };
-
-        let engine = PhysicsEngine::new(node_count, edges_flat.to_vec(), params);
-        Ok(GraphPhysicsWasm { engine })
+    pub fn new(node_count: usize, edges_flat: &[u32], params: JsValue) -> Result<GraphPhysicsWasm, JsValue> {
+        Ok(GraphPhysicsWasm { engine: PhysicsEngine::new(node_count, edges_flat, params_from(params)?) })
     }
 
-    pub fn set_params(&mut self, params_val: JsValue) -> Result<(), JsValue> {
-        let params: SimulationParams =
-            from_value(params_val).map_err(|e| JsValue::from_str(&e.to_string()))?;
-        self.engine.params = params;
-        self.engine.kinetic_energy = 1.0;
+    pub fn set_edges(&mut self, edges_flat: &[u32], rest: &[f32], strength: &[f32]) {
+        self.engine.set_edges(edges_flat, rest, strength);
+    }
+
+    pub fn set_params(&mut self, params: JsValue) -> Result<(), JsValue> {
+        self.engine.set_params(params_from(params)?);
         Ok(())
     }
 
@@ -39,73 +38,52 @@ impl GraphPhysicsWasm {
         to_value(&self.engine.params).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
-    pub fn set_positions(&mut self, positions_flat: &[f32]) {
-        self.engine.set_positions_flat(positions_flat);
-    }
+    pub fn set_positions(&mut self, positions_flat: &[f32]) { self.engine.set_positions_flat(positions_flat); }
 
     pub fn set_constraints(&mut self, radii: &[f32], levels: &[f32], fixed: &[f32]) {
         self.engine.set_constraints(radii, levels, fixed);
     }
 
-    pub fn step(&mut self) -> bool {
-        self.engine.step()
+    pub fn set_radii(&mut self, radii: &[f32]) { self.engine.set_radii(radii); }
+
+    pub fn set_fixed(&mut self, index: u32, x: f32, y: f32, z: f32, fixed: bool) {
+        self.engine.set_fixed(index as usize, if fixed { Some(Vec3A::new(x, y, z)) } else { None });
     }
 
+    pub fn reheat(&mut self, energy: f32) { self.engine.reheat(energy); }
+    pub fn set_temperature(&mut self, level: f32) { self.engine.set_temperature(level); }
+
+    pub fn step(&mut self) -> bool { self.engine.step() }
+
+    /// Run up to `count` steps; returns whether the simulation is still active.
     pub fn step_n(&mut self, count: u32) -> bool {
         let mut active = false;
         for _ in 0..count {
-            if self.engine.step() {
-                active = true;
-            } else {
-                break;
-            }
+            active = self.engine.step();
+            if !active { break; }
         }
-        active
+        active && !self.engine.is_converged()
     }
 
-    pub fn energy(&self) -> f32 {
-        self.engine.kinetic_energy
-    }
+    pub fn energy(&self) -> f32 { self.engine.kinetic_energy }
+    pub fn is_converged(&self) -> bool { self.engine.is_converged() }
+    pub fn positions_ptr(&self) -> *const f32 { self.engine.positions_ptr() }
+    pub fn positions_len(&self) -> usize { self.engine.positions_len() }
+    pub fn positions_stride(&self) -> usize { physics::POSITION_STRIDE }
+    pub fn edge_count(&self) -> usize { self.engine.edge_count() }
 
-    pub fn is_converged(&self) -> bool {
-        self.engine.kinetic_energy < self.engine.params.alpha_min
-    }
+    pub fn temperature(&self) -> f32 { self.engine.temperature() }
+    /// 0 = running, 1 = settled, 2 = cooled.
+    pub fn stop_reason(&self) -> u32 { self.engine.stop_reason() }
 
-    pub fn positions_ptr(&self) -> *const f32 {
-        self.engine.positions_ptr()
-    }
-
-    pub fn positions_len(&self) -> usize {
-        self.engine.positions_len()
-    }
-
-    pub fn positions_stride(&self) -> usize {
-        4
-    }
-
-    pub fn shortest_path_hops(&self, start_node: u32) -> Vec<i32> {
-        self.engine.shortest_path_hops(start_node)
-    }
-
-    pub fn connected_components(&self) -> Vec<u32> {
-        self.engine.connected_components()
-    }
-
-    pub fn node_degrees(&self) -> Vec<u32> {
-        self.engine.node_degrees()
-    }
-
-    pub fn rebuild_spatial_hash(&mut self, cell_size: f32) {
-        self.engine.rebuild_spatial_hash(cell_size);
-    }
-
-    pub fn query_radius(&self, cx: f32, cy: f32, cz: f32, radius: f32) -> Vec<u32> {
-        self.engine
-            .query_radius(glam::Vec3A::new(cx, cy, cz), radius)
-    }
-
-    pub fn find_nearest(&self, px: f32, py: f32, pz: f32, max_dist: f32) -> Option<u32> {
-        self.engine
-            .find_nearest(glam::Vec3A::new(px, py, pz), max_dist)
+    /// [steps, kinetic_energy, max_displacement, mean_displacement, overlapping_pairs,
+    ///  pairs_examined, budget_exhausted, large_nodes, nan_resets, temperature, stop_reason]
+    pub fn diagnostics(&self) -> Vec<f32> {
+        let d = self.engine.diagnostics;
+        vec![
+            d.steps as f32, d.kinetic_energy, d.max_displacement, d.mean_displacement, d.overlapping_pairs as f32,
+            d.pairs_examined as f32, d.budget_exhausted as f32, d.large_nodes as f32, d.nan_resets as f32,
+            d.temperature, d.stop_reason as f32,
+        ]
     }
 }

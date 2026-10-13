@@ -1,50 +1,59 @@
+# Build, test and package a tagged release. The release is created as a draft
+# so it can be reviewed before it is published.
 name: Release Obsidian plugin
 
 on:
-    push:
-        tags:
-            - "*"
+  push:
+    tags:
+      - "*"
 
 jobs:
-    build:
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-        steps:
-            - uses: actions/checkout@v4
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
 
-            - name: Use Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: "22.x"
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
 
-            - name: Setup Rust Toolchain
-              uses: dtolnay/rust-toolchain@stable
-              with:
-                  targets: wasm32-unknown-unknown
+      - name: Set up Rust (stable, wasm32 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
 
-            - name: Install wasm-pack and binaryen
-              run: |
-                  sudo apt-get update && sudo apt-get install -y binaryen
-              continue-on-error: true
+      - name: Install dependencies (wasm-pack comes from package-lock.json)
+        run: npm ci
 
-            - name: Install wasm-pack
-              uses: jetli/wasm-pack-action@v0.4.0
-              with:
-                  version: "latest"
+      - name: Type check and tests
+        run: |
+          npm run typecheck
+          npm test
+          npm run test:rust
 
-            - name: Build plugin
-              run: |
-                  npm install
-                  npm run build
+      - name: Build (Rust -> WebAssembly -> plugin)
+        run: npm run build
 
-            - name: Create release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: |
-                  tag="${GITHUB_REF#refs/tags/}"
+      - name: English-only check and packaging audit
+        run: |
+          node scripts/check-english.mjs
+          node scripts/package.mjs
 
-                  gh release create "$tag" \
-                    --title="$tag" \
-                    --draft \
-                    main.js manifest.json styles.css
+      - name: Check that the tag matches the manifest version
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          version=$(node -p "require('./manifest.json').version")
+          test "$tag" = "$version" || { echo "tag $tag != manifest $version"; exit 1; }
+
+      - name: Create draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          gh release create "$tag" --title="$tag" --draft --notes-file CHANGELOG.md \
+            dist/obsidian-3d-mindmap/main.js dist/obsidian-3d-mindmap/manifest.json dist/obsidian-3d-mindmap/styles.css \
+            "release/obsidian-3d-mindmap-$tag.zip" "release/obsidian-3d-mindmap-$tag-source.zip" release/SHA256SUMS.txt

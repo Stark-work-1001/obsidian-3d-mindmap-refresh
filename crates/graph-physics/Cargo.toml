@@ -1,32 +1,22 @@
 [package]
 name = "graph-physics"
-version = "0.1.0"
+version = "2.0.0"
 edition = "2024"
 license = "MIT"
-description = "High-performance SIMD 3D force-directed graph physics engine"
+description = "Force-directed 3D layout engine for outline mind maps (WebAssembly, SIMD)"
+publish = false
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = [
-    "-O4",
-    "--enable-simd",
-    "--enable-reference-types",
-    "--enable-bulk-memory",
-    "--enable-nontrapping-float-to-int",
-    "--enable-sign-ext",
-    "--enable-mutable-globals",
-]
+# wasm-opt is skipped by the build script (--no-opt) so builds do not depend on
+# binaryen being installed; the Rust release profile already optimises.
+wasm-opt = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# bytemuck: used for zero-cost cast_slice of Vec<Vec3A> → &[f32].
-# The "derive" feature enables Pod/Zeroable derive macros if needed later.
-bytemuck = { version = "1.18", features = ["derive"] }
-# glam: SIMD-aligned Vec3A (128-bit) matches WASM v128 lane layout exactly.
-# "bytemuck" feature enables bytemuck::Pod impl on all glam types.
-glam = { version = "0.33", features = ["bytemuck"] }
-petgraph = { version = "0.8.3", default-features = false }
+# glam: SIMD-aligned Vec3A (16 bytes) matches the stride-4 Float32Array layout.
+glam = "0.33"
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
 wasm-bindgen = "0.2"

@@ -1,0 +1,7 @@
+# Check out text with LF on every platform: builds are byte-for-byte
+# reproducible and the Rust source digest matches the committed WebAssembly.
+* text=auto eol=lf
+*.woff2 binary
+*.wasm binary
+*.png binary
+*.zip binary
